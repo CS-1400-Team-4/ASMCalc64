@@ -1,75 +1,78 @@
 section .data
-    prompt_msg db "Enter operation (+ - * / q to quit): ", 0
-    prompt_len equ $ - prompt_msg
-    num1_msg db "Enter first number: ", 0xa
-    num1_len equ $ - num1_msg
-    num2_msg db "Enter second number: ", 0xa
-    num2_len equ $ - num2_msg
-    result_msg db "Result: "
-    result_len equ $ - result_msg
-    div_zero_msg db "Error: Division by zero!", 0xa
-    div_zero_len equ $ - div_zero_msg
-    invalid_op_msg db "Error: Invalid operation!", 0xa
-    invalid_op_len equ $ - invalid_op_msg
-    debug_num1 db "Debug - First number: ", 0
-    debug_num1_len equ $ - debug_num1
-    debug_num2 db "Debug - Second number: ", 0
-    debug_num2_len equ $ - debug_num2
-    newline db 0xa
+    ; Prompts and messages for user interaction
+    prompt_msg db "Enter operation (+ - * / q to quit): ", 0   ; Prompt for calculator operation
+    prompt_len equ $ - prompt_msg                              ; Calculate prompt message length
+    num1_msg db "Enter first number: ", 0xa                    ; Prompt for first number
+    num1_len equ $ - num1_msg                                  ; Calculate first number prompt length
+    num2_msg db "Enter second number: ", 0xa                   ; Prompt for second number
+    num2_len equ $ - num2_msg                                  ; Calculate second number prompt length
+    result_msg db "Result: "                                   ; Result message prefix
+    result_len equ $ - result_msg                              ; Calculate result message length
+    div_zero_msg db "Error: Division by zero!", 0xa            ; Division by zero error message
+    div_zero_len equ $ - div_zero_msg                          ; Calculate division by zero message length
+    invalid_op_msg db "Error: Invalid operation!", 0xa         ; Invalid operation error message
+    invalid_op_len equ $ - invalid_op_msg                      ; Calculate invalid operation message length
+    
+    ; Debug messages for tracing number inputs
+    debug_num1 db "Debug - First number: ", 0                  ; Debug message for first number
+    debug_num1_len equ $ - debug_num1                          ; Calculate debug first number message length
+    debug_num2 db "Debug - Second number: ", 0                 ; Debug message for second number
+    debug_num2_len equ $ - debug_num2                          ; Calculate debug second number message length
+    newline db 0xa                                             ; Newline character for formatting
 
 section .bss
-    operation resb 2
-    num1 resb 32
-    num2 resb 32
-    result resb 32
-    num1_val resq 1    ; 64-bit storage for first number
-    num2_val resq 1    ; 64-bit storage for second number
-    debug_buf resb 32
+    ; Buffer and variable reservations for runtime data
+    operation resb 2    ; Buffer to store user-input operation
+    num1 resb 32        ; Buffer to store first number as string
+    num2 resb 32        ; Buffer to store second number as string
+    result resb 32      ; Buffer to store result
+    num1_val resq 1     ; 64-bit storage for first number's numeric value
+    num2_val resq 1     ; 64-bit storage for second number's numeric value
+    debug_buf resb 32   ; Temporary buffer for number conversion and printing
 
 section .text
-    global _start
+    global _start       ; Entry point for the program
 
 _start:
 calculator_loop:
-    ; Print operation prompt
-    mov rax, 1          ; sys_write
-    mov rdi, 1          ; stdout
-    mov rsi, prompt_msg
-    mov rdx, prompt_len
+    ; Display operation prompt and get user input
+    mov rax, 1          ; sys_write syscall
+    mov rdi, 1          ; File descriptor (stdout)
+    mov rsi, prompt_msg ; Message to display
+    mov rdx, prompt_len ; Message length
     syscall
     
-    ; Read operation
-    mov rax, 0          ; sys_read
-    mov rdi, 0          ; stdin
-    mov rsi, operation
-    mov rdx, 2
+    ; Read user's operation choice
+    mov rax, 0          ; sys_read syscall
+    mov rdi, 0          ; File descriptor (stdin)
+    mov rsi, operation  ; Buffer to store input
+    mov rdx, 2          ; Read 2 bytes (operation + newline)
     syscall
     
-    ; Check for quit
+    ; Check if user wants to quit
     mov al, [operation]
-    cmp al, 'q'
-    je exit_program
+    cmp al, 'q'         ; Compare input with 'q'
+    je exit_program     ; Exit if 'q' is entered
     
-    ; Get first number
+    ; Prompt and read first number (with similar syscalls as operation input)
     mov rax, 1
     mov rdi, 1
     mov rsi, num1_msg
     mov rdx, num1_len
     syscall
     
-    ; Read first number
     mov rax, 0
     mov rdi, 0
     mov rsi, num1
     mov rdx, 32
     syscall
     
-    ; Convert first number
+    ; Convert first number from string to integer
     mov rsi, num1
     call string_to_int
-    mov [num1_val], rax    ; Store first number
+    mov [num1_val], rax    ; Store converted first number
     
-    ; Debug output for first number
+    ; Optional debug output for first number
     push rax
     mov rax, 1
     mov rdi, 1
@@ -79,7 +82,7 @@ calculator_loop:
     pop rax
     
     push rax
-    call print_number
+    call print_number   ; Print the converted number
     mov rax, 1
     mov rdi, 1
     mov rsi, newline
@@ -87,26 +90,24 @@ calculator_loop:
     syscall
     pop rax
     
-    ; Get second number
+    ; Repeat similar process for second number
     mov rax, 1
     mov rdi, 1
     mov rsi, num2_msg
     mov rdx, num2_len
     syscall
     
-    ; Read second number
     mov rax, 0
     mov rdi, 0
     mov rsi, num2
     mov rdx, 32
     syscall
     
-    ; Convert second number
     mov rsi, num2
     call string_to_int
-    mov [num2_val], rax    ; Store second number
+    mov [num2_val], rax    ; Store converted second number
     
-    ; Debug output for second number
+    ; Optional debug output for second number
     push rax
     mov rax, 1
     mov rdi, 1
@@ -124,22 +125,22 @@ calculator_loop:
     syscall
     pop rax
     
-    ; Load numbers for operation
+    ; Load numbers for arithmetic operation
     mov rax, [num1_val]
     mov rbx, [num2_val]
     
-    ; Perform operation
+    ; Determine and perform arithmetic operation based on user input
     mov cl, [operation]
-    cmp cl, '+'
+    cmp cl, '+'         ; Check for addition
     je do_add
-    cmp cl, '-'
+    cmp cl, '-'         ; Check for subtraction
     je do_subtract
-    cmp cl, '*'
+    cmp cl, '*'         ; Check for multiplication
     je do_multiply
-    cmp cl, '/'
+    cmp cl, '/'         ; Check for division
     je do_divide
     
-    ; Invalid operation
+    ; Handle invalid operation
     mov rax, 1
     mov rdi, 1
     mov rsi, invalid_op_msg
@@ -147,28 +148,29 @@ calculator_loop:
     syscall
     jmp calculator_loop
 
+; Arithmetic operation implementations
 do_add:
-    add rax, rbx
+    add rax, rbx        ; Add two numbers
     jmp print_result
 
 do_subtract:
-    sub rax, rbx
+    sub rax, rbx        ; Subtract second from first number
     jmp print_result
 
 do_multiply:
-    imul rbx
+    imul rbx            ; Signed multiply
     jmp print_result
 
 do_divide:
-    test rbx, rbx
+    test rbx, rbx       ; Check if divisor is zero
     jz division_by_zero
-    cqo                 ; Sign-extend RAX into RDX:RAX
-    idiv rbx
+    cqo                 ; Sign-extend RAX into RDX:RAX for signed division
+    idiv rbx            ; Signed integer divide
     
 print_result:
-    push rax            ; Save result
+    push rax            ; Save result before printing
     
-    ; Print "Result: "
+    ; Print "Result: " prefix
     mov rax, 1
     mov rdi, 1
     mov rsi, result_msg
@@ -176,7 +178,7 @@ print_result:
     syscall
     
     pop rax             ; Restore result
-    call print_number
+    call print_number   ; Convert and print result
     
     ; Print newline
     mov rax, 1
@@ -185,9 +187,10 @@ print_result:
     mov rdx, 1
     syscall
     
-    jmp calculator_loop
+    jmp calculator_loop ; Continue calculator loop
 
 division_by_zero:
+    ; Handle division by zero error
     mov rax, 1
     mov rdi, 1
     mov rsi, div_zero_msg
@@ -195,58 +198,59 @@ division_by_zero:
     syscall
     jmp calculator_loop
 
-; Convert string to integer
+; Convert string to signed 64-bit integer
 ; Input: RSI points to string
-; Output: RAX contains integer
+; Output: RAX contains converted integer
 string_to_int:
-    push rbx
+    push rbx            ; Save registers
     push rcx
     push rdx
     push rsi
     
-    xor rax, rax        ; Clear result
+    xor rax, rax        ; Clear result register
     xor rcx, rcx        ; Clear sign flag
     
-    ; Check for minus sign
+    ; Check for negative sign
     mov bl, byte [rsi]
     cmp bl, '-'
-    jne .process_digits
-    inc rsi
-    mov rcx, 1          ; Set sign flag
+    jne .process_digits ; Skip sign handling if not negative
+    inc rsi             ; Move past minus sign
+    mov rcx, 1          ; Set negative sign flag
     
 .process_digits:
-    movzx rbx, byte [rsi]   ; Get character
-    cmp bl, 0xa             ; Check for newline
+    movzx rbx, byte [rsi]   ; Get current character
+    cmp bl, 0xa             ; Check for newline (end of input)
     je .done
-    cmp bl, 0              ; Check for null
+    cmp bl, 0               ; Check for null terminator
     je .done
-    cmp bl, '0'            ; Check if below '0'
+    cmp bl, '0'             ; Validate digit range
     jb .done
-    cmp bl, '9'            ; Check if above '9'
+    cmp bl, '9'
     ja .done
     
-    sub bl, '0'            ; Convert to number
-    imul rax, 10           ; Multiply previous result by 10
-    add rax, rbx           ; Add new digit
-    inc rsi                ; Next character
+    sub bl, '0'             ; Convert ASCII to numeric value
+    imul rax, 10            ; Multiply previous result by 10
+    add rax, rbx            ; Add current digit
+    inc rsi                 ; Move to next character
     jmp .process_digits
     
 .done:
-    ; Apply sign if negative
+    ; Apply sign if number was negative
     test rcx, rcx
     jz .exit
     neg rax
     
 .exit:
-    pop rsi
+    pop rsi             ; Restore registers
     pop rdx
     pop rcx
     pop rbx
     ret
 
-; Print number in RAX
+; Print signed 64-bit integer
+; Input: RAX contains number to print
 print_number:
-    push rax
+    push rax            ; Save registers
     push rbx
     push rcx
     push rdx
@@ -254,13 +258,13 @@ print_number:
     mov rcx, debug_buf
     add rcx, 31         ; Point to end of buffer
     mov byte [rcx], 0   ; Null terminate
-    mov rbx, 10         ; Divisor
+    mov rbx, 10         ; Divisor for decimal conversion
     
-    ; Check if negative
+    ; Handle negative numbers
     test rax, rax
-    jns .convert
+    jns .convert        ; Skip if non-negative
     neg rax             ; Make positive
-    push rax            ; Save number
+    push rax
     mov al, '-'         ; Print minus sign
     mov [debug_buf], al
     pop rax
@@ -271,11 +275,11 @@ print_number:
     div rbx             ; Divide by 10
     add dl, '0'         ; Convert remainder to ASCII
     mov [rcx], dl       ; Store digit
-    test rax, rax       ; Check if more digits
+    test rax, rax       ; Check if more digits remain
     jnz .convert
     
-    ; Print the number
-    mov rax, 1          ; sys_write
+    ; Print the converted number
+    mov rax, 1          ; sys_write syscall
     mov rdi, 1          ; stdout
     mov rdx, debug_buf
     add rdx, 31
@@ -283,13 +287,13 @@ print_number:
     mov rsi, rcx        ; Set string pointer
     syscall
     
-    pop rdx
+    pop rdx             ; Restore registers
     pop rcx
     pop rbx
     pop rax
     ret
 
 exit_program:
-    mov rax, 60         ; sys_exit
-    xor rdi, rdi        ; status = 0
-    syscall
+    mov rax, 60         ; sys_exit syscall
+    xor rdi, rdi        ; Exit status = 0
+    syscall             ; Exit the program
